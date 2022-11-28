@@ -1,6 +1,6 @@
 ---
 title: "Final Project Check-up Memo"
-subtitle: "Data Science 1 with R (STAT 301-1)"
+subtitle: "Data Visualization (STAT 302-1)"
 author: "Zach Huang"
 date: "November 27, 2022"
 format: html
