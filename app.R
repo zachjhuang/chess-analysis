@@ -9,6 +9,7 @@
 
 library(shiny)
 library(tidyverse)
+library(gghighlight)
 
 chess_games = read.csv("data/chess_data.csv")
 chess_games <- chess_games %>% 
@@ -47,121 +48,137 @@ chess_games_merged <- rbind(chess_games_white, chess_games_black) %>%
                                  "Black Draw",
                                  "Black Win")))
 
-chess_games_merged <- 
-  chess_games_merged[order(chess_games_merged$date),]
+chess_games_merged <- chess_games_merged[order(chess_games_merged$date),]
 
 top_50_gms <- tail(names(sort(table(chess_games_merged$player_name))), 50)
 
+chess_games_merged <- chess_games_merged %>%
+  filter(player_name %in% top_50_gms)
+
 # Define UI for application that draws a histogram
 ui <- fluidPage(
-
-    # Application title
-    titlePanel("Chess Games Analysis"),
-
-    # Sidebar with a slider input for number of bins 
-    sidebarLayout(
-        sidebarPanel(
-            h3("Filter games by:"),
-            dateRangeInput(
-              "dates", 
-              label = "Date",
-              start = min(chess_games$date),
-              end = max(chess_games$date),
-              min = min(chess_games$date),
-              max = max(chess_games$date),
-            ),
-            selectInput(
-              "event", 
-              label = "Event",
-              choices = c("All Events", unique(chess_games$event_name)),
-              selected = 1
-            ),
-            selectInput(
-              "player", 
-              label = "Player",
-              choices = c("All Players", rev(top_50_gms)),
-              selected = 1
-            ),
-            radioButtons(
-              "color", 
-              label = "Color", 
-              choices = c("Both", "White", "Black"),
-              selected = "Both"
-            ),
-            radioButtons(
-              "result", 
-              label = "Result", 
-              choices = c("All", "Win", "Draw", "Loss"),
-              selected = "All"
-            ),
-            sliderInput(
-              "player_ELO", 
-              label = "Player ELO", 
-              min = min(chess_games_merged$player_ELO), 
-              max = max(chess_games_merged$player_ELO), 
-              value = c(min(chess_games_merged$player_ELO),
-                        max(chess_games_merged$player_ELO))
-            ),
-            sliderInput(
-              "opponent_ELO", 
-              label = "Opponent ELO", 
-              min = min(chess_games_merged$opponent_ELO), 
-              max = max(chess_games_merged$opponent_ELO), 
-              value = c(min(chess_games_merged$opponent_ELO),
-                        max(chess_games_merged$opponent_ELO))
-            ),
-        ),
-
-        # Show a plot of the generated distribution
-        mainPanel(
-          tabsetPanel(
-            tabPanel("Plot", plotOutput("scatterPlot"))
-          )
-        )
+  titlePanel("Chess Games Analysis of 50 Top Players"),
+  tabsetPanel(
+    tabPanel("Outcome vs Player Strength", 
+             sidebarLayout(
+               sidebarPanel(
+                 h3("Filter games by:"),
+                 dateRangeInput("scatter_dates", 
+                                label = "Date",
+                                start = min(chess_games$date),
+                                end = max(chess_games$date),
+                                min = min(chess_games$date),
+                                max = max(chess_games$date),
+                 ),
+                 selectInput("scatter_event", 
+                             label = "Event",
+                             choices = c("All Events", 
+                                         unique(chess_games$event_name)),
+                             selected = 1
+                 ),
+                 selectInput("scatter_player", 
+                             label = "Player",
+                             choices = c("All Players", 
+                                         rev(top_50_gms)),
+                             selected = 1
+                 ),
+                 radioButtons("scatter_color", 
+                              label = "Color", 
+                              choices = c("Both", "White", "Black"),
+                              selected = "Both"
+                 ),
+                 radioButtons("scatter_result", 
+                              label = "Result", 
+                              choices = c("All", "Win", "Draw", "Loss"),
+                              selected = "All"
+                 ),
+                 sliderInput("scatter_player_ELO", 
+                             label = "Player ELO", 
+                             min = min(chess_games_merged$player_ELO), 
+                             max = max(chess_games_merged$player_ELO), 
+                             value = c(min(chess_games_merged$player_ELO),
+                                       max(chess_games_merged$player_ELO))
+                 ),
+                 sliderInput("scatter_opponent_ELO", 
+                             label = "Opponent ELO", 
+                             min = min(chess_games_merged$opponent_ELO), 
+                             max = max(chess_games_merged$opponent_ELO), 
+                             value = c(min(chess_games_merged$opponent_ELO),
+                                       max(chess_games_merged$opponent_ELO))
+                 )
+               ),
+               mainPanel(plotOutput("scatterPlot"))
+             )
+    ),
+    tabPanel("Player ELO over time",
+             sidebarLayout(
+               sidebarPanel(
+                 h3("Filter games by:"),
+                 dateRangeInput("line_dates", 
+                                label = "Date",
+                                start = min(chess_games$date),
+                                end = max(chess_games$date),
+                                min = min(chess_games$date),
+                                max = max(chess_games$date),
+                 ),
+                 selectInput("line_player", 
+                             label = "Player",
+                             choices = c("All Players", rev(top_50_gms)),
+                             selected = 1
+                 ),
+                 sliderInput("line_player_ELO", 
+                             label = "Player ELO", 
+                             min = min(chess_games_merged$player_ELO), 
+                             max = max(chess_games_merged$player_ELO), 
+                             value = c(min(chess_games_merged$player_ELO),
+                                       max(chess_games_merged$player_ELO))
+                 )
+               ),
+               mainPanel(plotOutput("linePlot"))
+             )
     )
+  )
 )
 
 # Define server logic required to draw a histogram
 server <- function(input, output) {
-
     output$scatterPlot <- renderPlot({
       chess_games_scatter <- chess_games_merged %>%
         filter(between(date, 
-                       as.Date(input$dates[1]), 
-                       as.Date(input$dates[2]))) %>%
+                       as.Date(input$scatter_dates[1]), 
+                       as.Date(input$scatter_dates[2]))) %>%
         filter(between(player_ELO,
-                       input$player_ELO[1],
-                       input$player_ELO[2])) %>%
+                       input$scatter_player_ELO[1],
+                       input$scatter_player_ELO[2])) %>%
         filter(between(opponent_ELO,
-                       input$opponent_ELO[1],
-                       input$opponent_ELO[2]))
+                       input$scatter_opponent_ELO[1],
+                       input$scatter_opponent_ELO[2]))
       
-      if (input$event != "All Events") {
+      if (input$scatter_event != "All Events") {
         chess_games_scatter <- chess_games_scatter %>%
-          filter(event_name == input$event)
+          filter(event_name == input$scatter_event)
       }
       
-      if (input$player != "All Players") {
+      if (input$scatter_player != "All Players") {
         chess_games_scatter <- chess_games_scatter %>%
-          filter(player_name == input$player)
+          filter(player_name == input$scatter_player)
       }
       
-      if (input$color != "Both"){
+      if (input$scatter_color != "Both"){
         chess_games_scatter <- chess_games_scatter %>%
-          filter(grepl(input$color, result))
+          filter(grepl(input$scatter_color, result))
       }
       
-      if (input$result != "All"){
+      if (input$scatter_result != "All"){
         chess_games_scatter <- chess_games_scatter %>%
-          filter(grepl(input$result, result))
+          filter(grepl(input$scatter_result, result))
       }
       
       chess_games_scatter %>%
         ggplot(aes(x = player_ELO, y = opponent_ELO)) +
         geom_point(
-          aes(color = result,
-              shape = result),
-          size = 3,
+          aes(color = result, shape = result),
+          size = 2,
           alpha = 0.8
         ) +
         scale_shape_manual(
@@ -173,12 +190,12 @@ server <- function(input, output) {
                      "Black Win",
                      "Black Draw",
                      "Black Loss"),
-          values = c("\u0057", 
-                     "\u0044", 
-                     "\u004c", 
-                     "\u0057", 
-                     "\u0044", 
-                     "\u004c") 
+          values = c(15, 
+                     17, 
+                     19, 
+                     15, 
+                     17, 
+                     19) 
         ) +
         scale_color_manual(
           name = "Result",
@@ -197,9 +214,31 @@ server <- function(input, output) {
                      "black")
         ) +
         labs(
-          title = "Outcome vs Player Strength",
           x = "Player ELO",
           y = "Opponent ELO"
+        ) +
+        theme_minimal()
+    })
+    
+    output$linePlot <- renderPlot({
+      chess_games_line <- chess_games_merged %>%
+        filter(between(date, 
+                       as.Date(input$line_dates[1]), 
+                       as.Date(input$line_dates[2]))) %>%
+        filter(between(player_ELO,
+                       input$line_player_ELO[1],
+                       input$line_player_ELO[2]))
+      
+      chess_games_line %>%
+        ggplot(aes(x = date, y = player_ELO)) +
+        geom_line(
+          aes(color = player_name),
+          show.legend = FALSE
+        ) +
+        gghighlight(player_name == input$line_player) +
+        labs(
+          x = "Date",
+          y = "Player ELO"
         ) +
         theme_minimal()
     })
