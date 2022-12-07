@@ -47,7 +47,10 @@ chess_games_merged <- rbind(chess_games_white, chess_games_black) %>%
                                  "Black Draw",
                                  "Black Win")))
 
-top_50_gms <- tail(names(sort(table(chess_games_merged$name))), 50)
+chess_games_merged <- 
+  chess_games_merged[order(chess_games_merged$date),]
+
+top_50_gms <- tail(names(sort(table(chess_games_merged$player_name))), 50)
 
 # Define UI for application that draws a histogram
 ui <- fluidPage(
@@ -84,6 +87,12 @@ ui <- fluidPage(
               label = "Color", 
               choices = c("Both", "White", "Black"),
               selected = "Both"
+            ),
+            radioButtons(
+              "result", 
+              label = "Result", 
+              choices = c("All", "Win", "Draw", "Loss"),
+              selected = "All"
             ),
             sliderInput(
               "player_ELO", 
@@ -127,26 +136,62 @@ server <- function(input, output) {
                        input$opponent_ELO[1],
                        input$opponent_ELO[2]))
       
+      if (input$event != "All Events") {
+        chess_games_scatter <- chess_games_scatter %>%
+          filter(event_name == input$event)
+      }
+      
+      if (input$player != "All Players") {
+        chess_games_scatter <- chess_games_scatter %>%
+          filter(player_name == input$player)
+      }
+      
+      if (input$color != "Both"){
+        chess_games_scatter <- chess_games_scatter %>%
+          filter(grepl(input$color, result))
+      }
+      
+      if (input$result != "All"){
+        chess_games_scatter <- chess_games_scatter %>%
+          filter(grepl(input$result, result))
+      }
+      
       chess_games_scatter %>%
         ggplot(aes(x = player_ELO, y = opponent_ELO)) +
         geom_point(
-          aes(fill = result),
-          color = "black",
-          pch = 21,
-          size = 0.2
+          aes(color = result,
+              shape = result),
+          size = 3,
+          alpha = 0.8
         ) +
-        scale_fill_manual(
+        scale_shape_manual(
           name = "Result",
           guide = "legend",
           limits = c("White Win",
                      "White Draw",
                      "White Loss",
-                     "Black Loss",
+                     "Black Win",
                      "Black Draw",
-                     "Black Win"),
-          values = c("white",
-                     "white",
-                     "white",
+                     "Black Loss"),
+          values = c("\u0057", 
+                     "\u0044", 
+                     "\u004c", 
+                     "\u0057", 
+                     "\u0044", 
+                     "\u004c") 
+        ) +
+        scale_color_manual(
+          name = "Result",
+          guide = "legend",
+          limits = c("White Win",
+                     "White Draw",
+                     "White Loss",
+                     "Black Win",
+                     "Black Draw",
+                     "Black Loss"),
+          values = c("#e3c059",
+                     "#e3c059",
+                     "#e3c059",
                      "black",
                      "black",
                      "black")
