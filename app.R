@@ -114,19 +114,19 @@ ui <- fluidPage(
              sidebarLayout(
                sidebarPanel(
                  h3("Filter games by:"),
-                 dateRangeInput("line_dates", 
+                 dateRangeInput("rating_line_dates", 
                                 label = "Date",
                                 start = min(chess_games$date),
                                 end = max(chess_games$date),
                                 min = min(chess_games$date),
                                 max = max(chess_games$date),
                  ),
-                 selectInput("line_player", 
-                             label = "Player",
-                             choices = c("All Players", rev(top_50_gms)),
+                 selectInput("rating_line_player", 
+                             label = "Highlight Player",
+                             choices = c("No Player Selected", rev(top_50_gms)),
                              selected = 1
                  ),
-                 sliderInput("line_player_ELO", 
+                 sliderInput("rating_line_player_ELO", 
                              label = "Player ELO", 
                              min = min(chess_games_merged$player_ELO), 
                              max = max(chess_games_merged$player_ELO), 
@@ -134,7 +134,34 @@ ui <- fluidPage(
                                        max(chess_games_merged$player_ELO))
                  )
                ),
-               mainPanel(plotOutput("linePlot"))
+               mainPanel(plotOutput("ratingLinePlot"))
+             )
+    ),
+    tabPanel("Average centipawn loss vs ELO",
+             sidebarLayout(
+               sidebarPanel(
+                 h3("Filter games by:"),
+                 dateRangeInput("acpl_line_dates", 
+                                label = "Date",
+                                start = min(chess_games$date),
+                                end = max(chess_games$date),
+                                min = min(chess_games$date),
+                                max = max(chess_games$date),
+                 ),
+                 selectInput("acpl_line_player", 
+                             label = "Highlight Player",
+                             choices = c("No Player Selected", rev(top_50_gms)),
+                             selected = 1
+                 ),
+                 sliderInput("acpl_line_player_ELO", 
+                             label = "Player ELO", 
+                             min = min(chess_games_merged$player_ELO), 
+                             max = max(chess_games_merged$player_ELO), 
+                             value = c(min(chess_games_merged$player_ELO),
+                                       max(chess_games_merged$player_ELO))
+                 )
+               ),
+               mainPanel(plotOutput("acplLinePlot"))
              )
     )
   )
@@ -220,25 +247,55 @@ server <- function(input, output) {
         theme_minimal()
     })
     
-    output$linePlot <- renderPlot({
-      chess_games_line <- chess_games_merged %>%
+    output$ratingLinePlot <- renderPlot({
+      chess_games_rating_line <- chess_games_merged %>%
         filter(between(date, 
-                       as.Date(input$line_dates[1]), 
-                       as.Date(input$line_dates[2]))) %>%
+                       as.Date(input$rating_line_dates[1]), 
+                       as.Date(input$rating_line_dates[2]))) %>%
         filter(between(player_ELO,
-                       input$line_player_ELO[1],
-                       input$line_player_ELO[2]))
+                       input$rating_line_player_ELO[1],
+                       input$rating_line_player_ELO[2]))
       
-      chess_games_line %>%
+      chess_games_rating_line %>%
         ggplot(aes(x = date, y = player_ELO)) +
         geom_line(
           aes(color = player_name),
           show.legend = FALSE
         ) +
-        gghighlight(player_name == input$line_player) +
+        gghighlight(player_name == input$rating_line_player) +
         labs(
           x = "Date",
           y = "Player ELO"
+        ) +
+        theme_minimal()
+    })
+    
+    output$acplLinePlot <- renderPlot({
+      chess_games_acpl_line <- chess_games_merged %>%
+        filter(between(date, 
+                       as.Date(input$acpl_line_dates[1]), 
+                       as.Date(input$acpl_line_dates[2]))) %>%
+        filter(between(player_ELO,
+                       input$acpl_line_player_ELO[1],
+                       input$acpl_line_player_ELO[2]))
+      
+      
+      chess_games_acpl_line <- chess_games_acpl_line %>%
+        mutate(player_ELO = floor(player_ELO/20) * 20) %>%
+        group_by(player_ELO, player_name) %>%
+        summarize(player_avg_CP_loss = mean(player_avg_CP_loss))
+      
+      chess_games_acpl_line %>%
+        ggplot(aes(x = player_ELO, 
+                   y = player_avg_CP_loss)) +
+        geom_line(
+          aes(color = player_name),
+          show.legend = FALSE
+        ) +
+        gghighlight(player_name == input$acpl_line_player) +
+        labs(
+          x = "Player ELO",
+          y = "Average centipawn loss"
         ) +
         theme_minimal()
     })
