@@ -1,0 +1,13 @@
+name: chess-analysis
+title: chess-analysis
+username:
+account: zachjhuang
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 7844396
+bundleId: 6608526
+url: https://zachjhuang.shinyapps.io/chess-analysis/
+when: 1670471179.40685
+lastSyncTime: 1670471179.40685
+asMultiple: FALSE
+asStatic: FALSE

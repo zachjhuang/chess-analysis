@@ -63,7 +63,7 @@ ui <- fluidPage(
     a("ELO", href = "https://www.chess.com/terms/elo-rating-chess"),
     "and",
     a("average centipawn loss", href = "https://lichess.org/faq#acpl"),
-    "of different GMs across different events, results, dates, and ratings. 
+    "of different players across different events, results, dates, and ratings. 
     The dataset used is adapted from",
     a("Kaggle.", href = "https://www.kaggle.com/datasets/tompaulat/10000-chess-games-with-centipawn-loss"),
     "The source code and adapted dataset is available through",
@@ -252,7 +252,7 @@ server <- function(input, output) {
         ) +
         geom_abline(intercept = 0, slope = 1) +
         scale_shape_manual(
-          name = "Result",
+          name = "Player Result",
           guide = "legend",
           limits = c("White Win",
                      "White Draw",
@@ -260,15 +260,15 @@ server <- function(input, output) {
                      "Black Win",
                      "Black Draw",
                      "Black Loss"),
-          values = c(15, 
-                     17, 
-                     19, 
-                     15, 
-                     17, 
-                     19) 
+          values = c(2, 
+                     1, 
+                     4, 
+                     2, 
+                     1, 
+                     4) 
         ) +
         scale_color_manual(
-          name = "Result",
+          name = "Player Result",
           guide = "legend",
           limits = c("White Win",
                      "White Draw",
