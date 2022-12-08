@@ -236,6 +236,11 @@ server <- function(input, output) {
                          "Player Average Centipawn Loss" = "player_avg_CP_loss",
                          "Opponent Average Centipawn Loss" = "opponent_avg_CP_loss")
       
+      scatter_title = NULL
+      if (scatter_y == "opponent_ELO") {
+        scatter_title = "Above the line, opponent rated higher; below the line, player rated higher"
+      }
+      
       chess_games_scatter <- chess_games_merged %>%
         # filter data based on widget inputs
         filter(between(date, 
@@ -318,7 +323,7 @@ server <- function(input, output) {
                      "black")
         ) +
         labs(
-          title = "Above the line, opponent rated higher; below the line, player rated higher",
+          title = scatter_title,
           x = "Player ELO",
           y = input$scatter_y
         ) +

@@ -5,9 +5,9 @@ account: zachjhuang
 server: shinyapps.io
 hostUrl: https://api.shinyapps.io/v1
 appId: 7844396
-bundleId: 6608737
+bundleId: 6608789
 url: https://zachjhuang.shinyapps.io/chess-analysis/
-when: 1670474379.35706
-lastSyncTime: 1670474379.35706
+when: 1670475545.01304
+lastSyncTime: 1670475545.01304
 asMultiple: FALSE
 asStatic: FALSE
