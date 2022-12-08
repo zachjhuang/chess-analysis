@@ -58,6 +58,16 @@ chess_games_merged <- chess_games_merged %>%
 # Define UI for application that draws a histogram
 ui <- fluidPage(
   titlePanel("Chess Games Analysis of 50 Top Players"),
+  p("This is an analysis of over 12000 games from 50 top chess players and 
+    grandmasters. It seeks to compare the",
+    a("ELO", href = "https://www.chess.com/terms/elo-rating-chess"),
+    "and",
+    a("average centipawn loss", href = "https://lichess.org/faq#acpl"),
+    "of different GMs across different events, results, dates, and ratings. 
+    The dataset used is adapted from",
+    a("Kaggle.", href = "https://www.kaggle.com/datasets/tompaulat/10000-chess-games-with-centipawn-loss"),
+    "The source code and adapted dataset is available through",
+    a("GitHub.", href = "https://github.com/zachjhuang/chess-analysis")),
   tabsetPanel(
     tabPanel("Outcome vs Player Strength", 
              sidebarLayout(
@@ -105,9 +115,34 @@ ui <- fluidPage(
                              max = max(chess_games_merged$opponent_ELO), 
                              value = c(min(chess_games_merged$opponent_ELO),
                                        max(chess_games_merged$opponent_ELO))
+                 ),
+                 sliderInput("scatter_player_avg_CP_loss", 
+                             label = "Player Average Centipawn Loss", 
+                             min = min(chess_games_merged$player_avg_CP_loss), 
+                             max = max(chess_games_merged$player_avg_CP_loss), 
+                             value = c(min(chess_games_merged$player_avg_CP_loss),
+                                       max(chess_games_merged$player_avg_CP_loss))
+                 ),
+                 sliderInput("scatter_opponent_avg_CP_loss", 
+                             label = "Opponent Average Centipawn Loss", 
+                             min = min(chess_games_merged$opponent_avg_CP_loss), 
+                             max = max(chess_games_merged$opponent_avg_CP_loss), 
+                             value = c(min(chess_games_merged$opponent_avg_CP_loss),
+                                       max(chess_games_merged$opponent_avg_CP_loss))
                  )
                ),
-               mainPanel(plotOutput("scatterPlot"))
+               mainPanel(plotOutput("scatterPlot"),
+                         h3("Select y-axis variable:"),
+                         br(),
+                         radioButtons("scatter_y",
+                                      label = NULL,
+                                      choices = c(
+                                        "Opponent ELO",
+                                        "Player Average Centipawn Loss",
+                                        "Opponent Average Centipawn Loss"),
+                                      selected = "Opponent ELO"
+                         ),
+               )
              )
     ),
     tabPanel("Player ELO over time",
@@ -141,13 +176,6 @@ ui <- fluidPage(
              sidebarLayout(
                sidebarPanel(
                  h3("Filter games by:"),
-                 dateRangeInput("acpl_line_dates", 
-                                label = "Date",
-                                start = min(chess_games$date),
-                                end = max(chess_games$date),
-                                min = min(chess_games$date),
-                                max = max(chess_games$date),
-                 ),
                  selectInput("acpl_line_player", 
                              label = "Highlight Player",
                              choices = c("No Player Selected", rev(top_50_gms)),
@@ -170,6 +198,12 @@ ui <- fluidPage(
 # Define server logic required to draw a histogram
 server <- function(input, output) {
     output$scatterPlot <- renderPlot({
+      print(input$scatter_y)
+      scatter_y = switch(input$scatter_y,
+                         "Opponent ELO" = "opponent_ELO", 
+                         "Player Average Centipawn Loss" = "player_avg_CP_loss",
+                         "Opponent Average Centipawn Loss" = "opponent_avg_CP_loss")
+      
       chess_games_scatter <- chess_games_merged %>%
         filter(between(date, 
                        as.Date(input$scatter_dates[1]), 
@@ -179,7 +213,13 @@ server <- function(input, output) {
                        input$scatter_player_ELO[2])) %>%
         filter(between(opponent_ELO,
                        input$scatter_opponent_ELO[1],
-                       input$scatter_opponent_ELO[2]))
+                       input$scatter_opponent_ELO[2])) %>%
+        filter(between(player_avg_CP_loss,
+                       input$scatter_player_avg_CP_loss[1],
+                       input$scatter_player_avg_CP_loss[2])) %>%
+        filter(between(opponent_avg_CP_loss,
+                       input$scatter_opponent_avg_CP_loss[1],
+                       input$scatter_opponent_avg_CP_loss[2])) 
       
       if (input$scatter_event != "All Events") {
         chess_games_scatter <- chess_games_scatter %>%
@@ -202,12 +242,15 @@ server <- function(input, output) {
       }
       
       chess_games_scatter %>%
-        ggplot(aes(x = player_ELO, y = opponent_ELO)) +
+        ggplot(aes_string(x = "player_ELO", 
+                          y = scatter_y)
+        ) +
         geom_point(
           aes(color = result, shape = result),
           size = 2,
           alpha = 0.8
         ) +
+        geom_abline(intercept = 0, slope = 1) +
         scale_shape_manual(
           name = "Result",
           guide = "legend",
@@ -242,7 +285,7 @@ server <- function(input, output) {
         ) +
         labs(
           x = "Player ELO",
-          y = "Opponent ELO"
+          y = input$scatter_y
         ) +
         theme_minimal()
     })
@@ -272,16 +315,13 @@ server <- function(input, output) {
     
     output$acplLinePlot <- renderPlot({
       chess_games_acpl_line <- chess_games_merged %>%
-        filter(between(date, 
-                       as.Date(input$acpl_line_dates[1]), 
-                       as.Date(input$acpl_line_dates[2]))) %>%
         filter(between(player_ELO,
                        input$acpl_line_player_ELO[1],
                        input$acpl_line_player_ELO[2]))
       
       
       chess_games_acpl_line <- chess_games_acpl_line %>%
-        mutate(player_ELO = floor(player_ELO/20) * 20) %>%
+        mutate(player_ELO = floor(player_ELO/50) * 50) %>%
         group_by(player_ELO, player_name) %>%
         summarize(player_avg_CP_loss = mean(player_avg_CP_loss))
       
