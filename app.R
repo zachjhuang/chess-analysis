@@ -11,10 +11,12 @@ library(shiny)
 library(tidyverse)
 library(gghighlight)
 
+# read and format data
 chess_games = read.csv("data/chess_data.csv")
 chess_games <- chess_games %>% 
   mutate(date = as.Date(date, format = "%m/%d/%Y"))
 
+# stack black and white column to filter by player
 chess_games_white <- select(chess_games,  -contains("black_name"))
 names(chess_games_white) = gsub(pattern = "white_", 
                                 replacement = "player_", 
@@ -31,6 +33,7 @@ names(chess_games_white) = gsub(pattern = "black_",
 
 chess_games_black <- select(chess_games,  -contains("white_name")) %>%
   mutate(result = result + 3)
+# rename columns to stack datasets
 names(chess_games_black) = gsub(pattern = "black_", 
                                 replacement = "player_", 
                                 x = names(chess_games_black))
@@ -38,6 +41,7 @@ names(chess_games_black) = gsub(pattern = "white_",
                                 replacement = "opponent_", 
                                 x = names(chess_games_black))
 
+# change result from continuous to categorical
 chess_games_merged <- rbind(chess_games_white, chess_games_black) %>%
   mutate(result = cut(result, 
                       breaks = c(-0.5, 0.5, 1.5, 2.5, 3.5, 4.5, 5.5),
@@ -48,8 +52,10 @@ chess_games_merged <- rbind(chess_games_white, chess_games_black) %>%
                                  "Black Draw",
                                  "Black Win")))
 
+# sort stacked dataframe by date
 chess_games_merged <- chess_games_merged[order(chess_games_merged$date),]
 
+# retrieve 50 players with most games in database
 top_50_gms <- tail(names(sort(table(chess_games_merged$player_name))), 50)
 
 chess_games_merged <- chess_games_merged %>%
@@ -59,17 +65,22 @@ chess_games_merged <- chess_games_merged %>%
 ui <- fluidPage(
   titlePanel("Chess Games Analysis of 50 Top Players"),
   p("This is an analysis of over 12000 games from 50 top chess players and 
-    grandmasters. It seeks to compare the",
+    grandmasters (GMs). It seeks to compare the",
     a("ELO", href = "https://www.chess.com/terms/elo-rating-chess"),
     "and",
-    a("average centipawn loss", href = "https://lichess.org/faq#acpl"),
-    "of different players across different events, results, dates, and ratings. 
+    a("average centipawn loss (ACPL)", href = "https://lichess.org/faq#acpl"),
+    "of different players across different events, results, dates, and ratings 
+    to discover trends that may be linked to cheating. This is in response to
+    claims levied by World Chess Champion Magnus Carlsen and the popular 
+    chess website Chess.com, among others, that GM Hans Niemann cheated in
+    over-the-board events as well as more online events than he previously 
+    admitted to.
     The dataset used is adapted from",
     a("Kaggle.", href = "https://www.kaggle.com/datasets/tompaulat/10000-chess-games-with-centipawn-loss"),
     "The source code and adapted dataset is available through",
     a("GitHub.", href = "https://github.com/zachjhuang/chess-analysis")),
   tabsetPanel(
-    tabPanel("Outcome vs Player Strength", 
+    tabPanel("Outcome vs player strength", 
              sidebarLayout(
                sidebarPanel(
                  h3("Filter games by:"),
@@ -191,6 +202,27 @@ ui <- fluidPage(
                ),
                mainPanel(plotOutput("acplLinePlot"))
              )
+    ),
+    tabPanel("Insights",
+             br(),
+             p("If it was possible to concretely determine whether GM Hans 
+             Niemann cheated from data analysis, there wouldn't be a controversy 
+             in the first place. Filtering recently played games by player, 
+             result, or color and 
+             comparing his results to other top grandmasters reveals nothing 
+             out of the ordinary. For example, his ACPL in wins
+             follows a similar pattern to the other players (Outcome vs Player 
+             Strength), he doesn't seem to be scoring wins over higher-rated 
+             opponents with either color more than any other top GM (Outcome vs player strength), 
+             and his ACPL decreases with increases in ELO similar to other 
+               GMs (Average centipawn loss vs ELO)."),
+             br(),
+             p("The trend that stands out the most is his steep climb in ELO 
+             rating over time. But by filtering for games past 2010 (Player ELO 
+             over time), it's clear that there are other young GMs such as 
+             Praggnanandhaa, Erigaisi, and Firouzja with similar trajectories 
+             that have not been so boldly accused of cheating."
+             )
     )
   )
 )
@@ -198,13 +230,14 @@ ui <- fluidPage(
 # Define server logic required to draw a histogram
 server <- function(input, output) {
     output$scatterPlot <- renderPlot({
-      print(input$scatter_y)
+      # change y-axis based on radio buttons
       scatter_y = switch(input$scatter_y,
                          "Opponent ELO" = "opponent_ELO", 
                          "Player Average Centipawn Loss" = "player_avg_CP_loss",
                          "Opponent Average Centipawn Loss" = "opponent_avg_CP_loss")
       
       chess_games_scatter <- chess_games_merged %>%
+        # filter data based on widget inputs
         filter(between(date, 
                        as.Date(input$scatter_dates[1]), 
                        as.Date(input$scatter_dates[2]))) %>%
@@ -240,6 +273,7 @@ server <- function(input, output) {
         chess_games_scatter <- chess_games_scatter %>%
           filter(grepl(input$scatter_result, result))
       }
+      
       
       chess_games_scatter %>%
         ggplot(aes_string(x = "player_ELO", 
@@ -284,6 +318,7 @@ server <- function(input, output) {
                      "black")
         ) +
         labs(
+          title = "Above the line, opponent rated higher; below the line, player rated higher",
           x = "Player ELO",
           y = input$scatter_y
         ) +
@@ -292,6 +327,7 @@ server <- function(input, output) {
     
     output$ratingLinePlot <- renderPlot({
       chess_games_rating_line <- chess_games_merged %>%
+        # filter data based on widget inputs
         filter(between(date, 
                        as.Date(input$rating_line_dates[1]), 
                        as.Date(input$rating_line_dates[2]))) %>%
@@ -314,12 +350,13 @@ server <- function(input, output) {
     })
     
     output$acplLinePlot <- renderPlot({
+      # filter data based on widget inputs
       chess_games_acpl_line <- chess_games_merged %>%
         filter(between(player_ELO,
                        input$acpl_line_player_ELO[1],
                        input$acpl_line_player_ELO[2]))
       
-      
+      # bin ACPL by ELO and find mean ACPL for each bin
       chess_games_acpl_line <- chess_games_acpl_line %>%
         mutate(player_ELO = floor(player_ELO/50) * 50) %>%
         group_by(player_ELO, player_name) %>%
